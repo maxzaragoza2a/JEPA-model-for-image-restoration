@@ -3,6 +3,8 @@
 Shapes (embed_dim=256):
     CIFAR-10, 32x32 image, 4x4 patches: (B, 32, 32, 3) -> (B, 64, 48)  -> (B, 64, 256)
     STL-10,   64x64 image, 8x8 patches: (B, 64, 64, 3) -> (B, 64, 192) -> (B, 64, 256)
+    STL-10,   96x96 image, 8x8 patches: (B, 96, 96, 3) -> (B, 144, 192) -> (B, 144, 384)
+                                        (stl10_vits, embed_dim=384)
 """
 
 import numpy as np

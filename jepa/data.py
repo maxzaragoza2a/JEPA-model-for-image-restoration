@@ -4,8 +4,12 @@ build_pretrain_dataset yields images only (self-supervised pretraining).
 build_probe_dataset yields (image, label) pairs for linear-probe evaluation.
 
 CIFAR-10 is 32x32 and loaded in memory by Keras. STL-10 is 96x96, streamed
-by tensorflow_datasets and resized to config.image_size. Both reach augment
+by tensorflow_datasets and resized to config.image_size when it differs
+(64 for the stl10 presets, kept at 96 for stl10_vits). Both reach augment
 and standardise as uint8 images of config.image_size.
+
+tensorflow_datasets reads STL-10 from $TFDS_DATA_DIR when it is set
+(default ~/tensorflow_datasets), and downloads it there if missing.
 """
 
 # tensorflow_datasets 4.9.10 calls urllib.parse after a bare `import urllib`
@@ -32,6 +36,7 @@ CLASSES = {"cifar10": CIFAR10_CLASSES, "stl10": STL10_CLASSES}
 # STL-10 pretrains on its 100k unlabelled images, made for this.
 STL10_PRETRAIN_SPLITS = {"train": "unlabelled", "test": "test"}
 STL10_PROBE_SPLITS = {"train": "train", "test": "test"}
+STL10_SIZE = 96
 
 AUTOTUNE = tf.data.AUTOTUNE
 
@@ -50,13 +55,16 @@ def resize(image, config: JEPAConfig):
 
 
 def load_stl10(config: JEPAConfig, split: str):
-    """(image, label) dataset of one tfds split, in file order, resized.
+    """(image, label) dataset of one tfds split, in file order, resized
+    to config.image_size if needed.
 
     The unlabelled split has label -1.
     """
     import tensorflow_datasets as tfds
 
     ds = tfds.load("stl10", split=split, as_supervised=True, shuffle_files=False)
+    if config.image_size == STL10_SIZE:
+        return ds
     return ds.map(lambda img, lab: (resize(img, config), lab),
                   num_parallel_calls=AUTOTUNE, deterministic=True)
 
@@ -89,7 +97,8 @@ def standardise(images, config: JEPAConfig):
 def augment(image, config: JEPAConfig):
     """Random crop with reflect padding and random horizontal flip.
 
-    The padding is an eighth of the side: 4px at 32x32, 8px at 64x64.
+    The padding is an eighth of the side: 4px at 32x32, 8px at 64x64,
+    12px at 96x96.
     """
     pad = config.image_size // 8
     image = tf.pad(image, [[pad, pad], [pad, pad], [0, 0]], mode="REFLECT")

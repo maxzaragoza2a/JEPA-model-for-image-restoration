@@ -1,0 +1,14 @@
+# Linux with an NVIDIA GPU (lab cluster). Same packages as requirements.txt,
+# with the CUDA build of TensorFlow: the [and-cuda] extra installs the CUDA
+# and cuDNN libraries through pip, no system CUDA needed.
+#   pip install -r requirements-gpu.txt
+# Check: python -c "import tensorflow as tf; print(tf.config.list_physical_devices('GPU'))"
+tensorflow[and-cuda]==2.21.0
+keras==3.15.0
+numpy==2.4.1
+
+tensorflow-datasets==4.9.10
+importlib_resources==7.1.0
+
+matplotlib==3.10.8
+scikit-learn==1.8.0

@@ -1,7 +1,8 @@
 """Teste le modèle sur des images hors dataset déposées dans ce dossier.
 
 Chaque image (.jpg, .jpeg, .png, .bmp, .webp) est recadrée au carré (centre),
-réduite à la résolution du run (32x32 pour CIFAR-10, 64x64 pour STL-10), puis traitée comme dans
+réduite à la résolution du run (32x32 pour CIFAR-10, 64x64 pour STL-10,
+96x96 pour stl10_vits), puis traitée comme dans
 result_analysis/predicted_fill.py : un masque, la prédiction des blocs cibles,
 et le retrieval des patchs les plus proches parmi les images de test du dataset du run.
 

@@ -32,7 +32,9 @@ from jepa.train import checkpoint_path  # noqa: E402
 from jepa.visualise import (BLOCK_COLOURS, block_bounds,  # noqa: E402
                             context_view, denormalise, patch_region)
 
-BANK_BATCHES = 16  # 16 x 128 = 2048 images de test, soit 131k patchs candidats
+# 2048 images de test, soit 131k patchs candidats en grille 8x8 et 295k en
+# grille 12x12 (stl10_vits), quelle que soit la taille de batch du run.
+BANK_IMAGES = 2048
 
 
 def load_model(config, images, rng, run):
@@ -47,8 +49,9 @@ def load_model(config, images, rng, run):
 class PatchBank:
     """Embedding cible et pixels de chaque patch de N images de test du dataset du run."""
 
-    def __init__(self, model, config, num_batches=BANK_BATCHES):
-        batches = [img for img, _ in build_probe_dataset(config, split="test").take(num_batches)]
+    def __init__(self, model, config, num_images=BANK_IMAGES):
+        test = build_probe_dataset(config, split="test").unbatch().take(num_images).batch(128)
+        batches = [img for img, _ in test]
         self.batches = batches
         self.images = np.concatenate(batches)  # standardisées
         self.pixels = denormalise(self.images, config)

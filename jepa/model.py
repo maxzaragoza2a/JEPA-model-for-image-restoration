@@ -1,10 +1,12 @@
 """JEPA: context encoder, target encoder and predictor assembled.
 
-Shapes for one batch (M context tokens, T tokens in one target block), with
-H = W = 32 on CIFAR-10 and 64 on STL-10, both cut into an 8x8 grid:
+Shapes for one batch (M context tokens, T tokens in one target block, N
+tokens per image), for embed_dim = 256:
     context encoder: (B, H, W, 3), context_indices -> (B, M, 256)
-    target encoder:  (B, H, W, 3) -> (B, 64, 256) -> gather -> (B, T, 256)
+    target encoder:  (B, H, W, 3) -> (B, N, 256) -> gather -> (B, T, 256)
     predictor:       (B, M, 256), context_indices, target_indices -> (B, T, 256)
+N = 64 (8x8 grid) on CIFAR-10 at 32x32 and STL-10 at 64x64, 144 (12x12 grid)
+on STL-10 at 96x96 (stl10_vits, where embed_dim = 384).
 
 Only the context encoder and the predictor receive gradients. The target
 encoder is an exponential moving average of the context encoder.

@@ -1,6 +1,35 @@
 # Project progress
 
-## Latest update: analysis of the pre-training run and tests on images outside CIFAR-10
+## Latest update: preparing a ViT-Small on STL-10 at 96x96 for the lab GPUs
+
+The ETIS lab now gives access to GPUs. A larger model only helps if each image is cut into more patches and there is more data, so the next run changes the three together (branch `stl10-vits`, plan in [TODO.md](TODO.md) section 5):
+
+| | `cifar10_d128` (done) | `stl10_vits` (next) |
+|---|---|---|
+| Data | CIFAR-10, 50k images, 32x32 | STL-10 unlabelled, 100k images, 96x96 |
+| Patch grid | 8x8 = 64 tokens | 12x12 = 144 tokens |
+| Encoder | width 128, 4 blocks, 4 heads | width 384, 12 blocks, 6 heads |
+| Trainable weights | 0.92M | 24.2M |
+| Hardware | local CPU, ~4 h | lab GPU |
+
+### What was added
+
+- **[`config.py`](jepa/config.py)**: the `stl10_96` dataset (native size, statistics recomputed at 96x96) and the `stl10_vits` preset (batch 256, 100 epochs, learning rate 5e-4).
+- **[`train.py`](jepa/train.py)**:
+  - the training step and the EMA are compiled with `tf.function`, with one trace for every mask size: ~2.4x faster on the local CPU, and the GPU is no longer waiting for Python;
+  - `--resume` goes on from the last finished epoch (weights, optimizer, step, mask generator), needed with the time limit of cluster jobs.
+- **[`linear_probe.py`](result_analysis/linear_probe.py)**: the first measure of how *useful* the representations are, not only of whether they are degenerate. On `cifar10_d128`: **56.6%** test accuracy, against 45.0% for a random encoder of the same architecture ([RESULTATS.md](result_analysis/RESULTATS.md) section 5).
+- **[`visualise_model.py`](jepa/visualise_model.py)**: prints every layer with its output shape and weight count, and exports the encoder and the predictor for [Netron](https://netron.app).
+- **Cluster**: [`requirements-gpu.txt`](requirements-gpu.txt) and a SLURM job script, [`scripts/train_slurm.sh`](scripts/train_slurm.sh).
+- **Tests**: masks on the 12x12 grid, the new preset, the compiled step and the resume ([`tests/test_train.py`](tests/test_train.py)).
+
+### Next steps
+
+Set the job script up on the cluster, run a 50-step smoke test to measure the time per step, then the full run. Its linear probe on STL-10 will be compared with a random encoder and with the smaller STL-10 runs.
+
+---
+
+## Previous update: analysis of the pre-training run and tests on images outside CIFAR-10
 
 Two folders were added: [`result_analysis/`](result_analysis/), which evaluates the 30-epoch run, and [`experimentation/`](experimentation/), which tests the model on our own images.
 
@@ -18,7 +47,7 @@ The pipeline works, but the predictions are clearly not good. On the bird image 
 
 ![Prediction on the bird image](experimentation/prediction_bird1_v1.png)
 
-### Next steps
+### Next steps (at the time)
 
 - A larger embedding dimension.
 - Re-training on a higher-resolution dataset (e.g. STL-10 or Tiny ImageNet at 64x64), since CIFAR-10 is only 32x32 and the model cannot run at another resolution without re-training.

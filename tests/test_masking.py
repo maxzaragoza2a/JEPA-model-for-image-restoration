@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from jepa.config import JEPAConfig
+from jepa.config import DATASETS, JEPAConfig
 from jepa.masking import (
     block_to_indices,
     gather_tokens,
@@ -13,9 +13,10 @@ from jepa.masking import (
 from jepa.patch_embed import PatchEmbedding, extract_patches
 
 
-@pytest.fixture
-def cfg():
-    return JEPAConfig()
+# The 8x8 grid of CIFAR-10 and the 12x12 grid of STL-10 at 96x96.
+@pytest.fixture(params=["cifar10", "stl10_96"])
+def cfg(request):
+    return JEPAConfig(**DATASETS[request.param])
 
 
 @pytest.fixture

@@ -80,18 +80,32 @@ DATASETS = {
     # Statistics of the unlabelled split after the resize.
     "stl10": dict(dataset="stl10", image_size=64, patch_size=8,
                   mean=(0.4406, 0.4273, 0.3858), std=(0.2592, 0.2519, 0.2597)),
+    # STL-10 at its native 96x96, no resize. Patches of 8 give a 12x12 grid
+    # of 144 tokens: finer detail per image, attention ~5x more expensive.
+    # The std is higher than at 64x64, where the antialiased resize smooths
+    # the images.
+    "stl10_96": dict(dataset="stl10", image_size=96, patch_size=8,
+                     mean=(0.4406, 0.4273, 0.3858), std=(0.2687, 0.2613, 0.2685)),
 }
 
 # One entry per training run: the fields that differ from the defaults above.
 # The run name also names its checkpoint folder (checkpoints/<run>/).
 _D128 = dict(embed_dim=128, num_heads=4, predictor_embed_dim=64,
              predictor_num_heads=4)
+# ViT-Small: 12 blocks of width 384, 6 heads of 64 dims (~21M weights).
+# The predictor stays narrow, as in I-JEPA: width 192, 6 blocks, 6 heads of
+# 32 dims (~3M). Meant for a GPU: batch 256, 100 epochs. The learning rate is
+# lower than the default 1e-3 (I-JEPA uses 1e-3 with batches of 2048).
+_VITS = dict(embed_dim=384, depth=12, num_heads=6,
+             predictor_embed_dim=192, predictor_depth=6, predictor_num_heads=6,
+             batch_size=256, epochs=100, learning_rate=5e-4, warmup_epochs=10)
 PRESETS = {
     # First run, see result_analysis/RESULTATS.md.
     "cifar10_d128": dict(**DATASETS["cifar10"], **_D128),
     "cifar10_d256": dict(**DATASETS["cifar10"]),
     "stl10_d128": dict(**DATASETS["stl10"], **_D128),
     "stl10_d256": dict(**DATASETS["stl10"]),
+    "stl10_vits": dict(**DATASETS["stl10_96"], **_VITS),
 }
 DEFAULT_RUN = "cifar10_d256"
 

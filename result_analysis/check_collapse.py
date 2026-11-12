@@ -8,7 +8,7 @@ Pour chaque encodeur (entraîné, et aléatoire comme référence), sur N images
     - rang effectif (exp de l'entropie des valeurs singulières normalisées).
       Collapse dimensionnel -> petit devant d.
 Mesuré sur deux niveaux : l'embedding moyen de chaque image (moyenne des 64
-tokens), et tous les tokens pris séparément.
+tokens, 144 pour stl10_vits), et tous les tokens pris séparément.
 
 Usage (depuis la racine du projet) :
     python result_analysis/check_collapse.py                    # DEFAULT_RUN
@@ -60,7 +60,7 @@ def stats(x):
 
 
 def embed(encoder, batches):
-    """-> (embedding moyen par image (n, d), tous les tokens (n * 64, d))."""
+    """-> (embedding moyen par image (n, d), tous les tokens (n * N, d))."""
     tokens = np.concatenate([np.asarray(encoder(b, training=False)) for b in batches])
     return tokens.mean(axis=1), tokens.reshape(-1, tokens.shape[-1])
 

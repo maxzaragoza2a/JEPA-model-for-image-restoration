@@ -71,17 +71,53 @@ The CPU is too slow for the new runs (the baseline already took ~4 h). TensorFlo
 
 - [x] `notebooks/kaggle_train.ipynb`: clones the repo, checks that a GPU is visible, runs a 20-step smoke test, then trains the `RUN` preset. It keeps Kaggle's own TensorFlow, writes `checkpoints/<run>/` and `logs/<run>.log`, and zips them into `<run>.zip`, to unzip at the project root.
 - [ ] Import the notebook into Kaggle (Accelerator: GPU, Internet: on) and run `cifar10_d256` with *Save & Run All*.
-- [ ] Note the time per step in the smoke test. `train_step` runs eagerly (no `tf.function`), so the GPU speed-up may be small. If it is, compile `train_step`, keeping in mind that the mask sizes change from one batch to the next and would cause retracing.
-- [ ] There is no resume from a checkpoint: a session that stops (12 h limit) means restarting the run. Add a resume (model and optimizer state, step, RNG) if the STL-10 runs come close to the limit.
+- [x] Compile `train_step` with `tf.function`. The indices are passed as int32 tensors of unknown length, so one trace serves every mask draw (`tests/test_train.py`). The EMA is compiled too, and the loss is only read every 50 steps. On the local CPU: ~0.5 s per step on `cifar10_d128`, against ~1.2 s before.
+- [ ] Note the time per step in the smoke test on a GPU.
+- [x] Resume from a checkpoint: `python -m jepa.train --run <run> --resume`. `checkpoints/<run>/resume/` holds the weights, the AdamW state, the step and the state of the mask generator after every epoch; a resumed run takes exactly the same next step (`tests/test_train.py`).
 
 ---
 
 ## 4. Evaluation and comparison
 
-For each run (`cifar10_d128` as the baseline, `cifar10_d256`, then STL-10):
+For each run (`cifar10_d128` as the baseline, `cifar10_d256`, then STL-10 and `stl10_vits`):
 - [ ] Loss curve (`plot_loss.py`).
 - [ ] Collapse check: normalised std (ideal ~`1/sqrt(embed_dim)`), dead dimensions, effective rank.
 - [ ] Nearest-neighbour retrieval rate of the true patch (`predicted_fill.py`), currently 51%.
 - [ ] Qualitative test on `experimentation/img/bird1.jpg`, currently ~46%: is the shape of the bird / branch recovered?
-- [ ] Optional: a linear probe on the labelled splits (`build_probe_dataset` already exists) for a quantitative comparison of the representations.
+- [x] Linear probe on the labelled splits: `result_analysis/linear_probe.py` (frozen target encoder, mean of the tokens, logistic regression, C chosen on 10% of the train split). `cifar10_d128`: **56.6%** test accuracy, against 45.0% for a random encoder.
+- [ ] Linear probe of every new run.
 - [ ] Add the results to `result_analysis/RESULTATS.md` and update `PROGRESS.md`.
+
+---
+
+## 5. STL-10 at 96x96 with a ViT-Small (lab GPU)
+
+The ETIS lab gives access to GPUs, enough for a larger model. A larger model only helps if the image is cut into more patches and there is more data, so the three change together:
+- **data**: STL-10 at its native 96x96 (no resize), the 100k unlabelled images;
+- **patches**: 8x8 pixels, a 12x12 grid of 144 tokens instead of 64 (attention ~5x more expensive);
+- **model**: ViT-Small, width 384, 12 blocks, 6 heads (~21.4M weights), predictor of width 192, 6 blocks, 6 heads (~2.8M).
+
+Branch `stl10-vits`.
+
+### Code
+- [x] `jepa/config.py`: `stl10_96` dataset (mean / std of the unlabelled split recomputed at 96x96: std (0.2687, 0.2613, 0.2685), higher than at 64x64 where the resize smooths the images) and `stl10_vits` preset: batch 256, 100 epochs, learning rate 5e-4, 10 epochs of warmup.
+- [x] `jepa/data.py`: no resize when the image is already at `image_size`. `$TFDS_DATA_DIR` sets where STL-10 is read.
+- [x] `jepa/train.py`: compiled step and EMA, `--resume` (section 3 above).
+- [x] `result_analysis/linear_probe.py` (section 4 above).
+- [x] `result_analysis/predicted_fill.py`: the retrieval bank is 2048 images whatever the batch size (295k candidate patches on the 12x12 grid).
+- [x] `requirements-gpu.txt` (Linux, `tensorflow[and-cuda]`), `scikit-learn` added to `requirements.txt`.
+- [x] `scripts/train_slurm.sh`: one-GPU SLURM job, `--resume` on every submission, `MAX_STEPS=50` for a smoke test.
+- [x] Tests: masks on the 12x12 grid, the `stl10_vits` preset and its weight count, the compiled step (one trace, the right loss, the target encoder left to the EMA), the resume.
+- [x] Shape comments for the 12x12 grid (`jepa/model.py`, `jepa/patch_embed.py`, analysis scripts).
+
+### On the cluster
+- [ ] Check the job scheduler (the script assumes SLURM), the partition and the time limit, and adapt `scripts/train_slurm.sh`.
+- [ ] Set up the environment: `pip install -r requirements-gpu.txt`, check that TensorFlow sees the GPU.
+- [ ] Download STL-10 into `$TFDS_DATA_DIR` from the login node.
+- [ ] Smoke test: `sbatch --export=ALL,MAX_STEPS=50 scripts/train_slurm.sh`. Note the time per step and the GPU memory, adjust the batch size if needed.
+- [ ] Full run: `sbatch scripts/train_slurm.sh`, resubmitted until the 100 epochs are done.
+- [ ] Optional, if too slow: mixed precision (`mixed_float16`, with a `LossScaleOptimizer` in the step).
+
+### Evaluation
+- [ ] Loss curve, collapse check (ideal normalised std ~1/sqrt(384) = 0.051), retrieval rate, `bird1.jpg` at 96x96 (`prediction_bird1_v3.png`).
+- [ ] Linear probe on the STL-10 labelled splits (5k train / 8k test), compared with a random encoder and, once trained, with `stl10_d128` / `stl10_d256`.

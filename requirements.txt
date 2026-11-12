@@ -10,3 +10,6 @@ tensorflow-datasets==4.9.10
 importlib_resources==7.1.0
 
 matplotlib==3.10.8
+
+# Linear probe (result_analysis/linear_probe.py).
+scikit-learn==1.8.0

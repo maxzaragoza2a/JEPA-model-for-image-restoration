@@ -65,3 +65,31 @@ def test_every_preset_runs_through_the_model(run):
 def test_both_datasets_keep_the_8x8_grid(dataset):
     cfg = JEPAConfig(**DATASETS[dataset])
     assert (cfg.grid_size, cfg.num_patches) == (8, 64)
+
+
+def test_stl10_at_96_keeps_the_native_size_on_a_12x12_grid():
+    cfg = JEPAConfig(**DATASETS["stl10_96"])
+    assert cfg.image_size == 96
+    assert (cfg.grid_size, cfg.num_patches) == (12, 144)
+
+
+def test_the_vit_small_preset():
+    cfg = get_config("stl10_vits")
+    assert (cfg.dataset, cfg.image_size, cfg.grid_size) == ("stl10", 96, 12)
+    assert (cfg.embed_dim, cfg.depth, cfg.num_heads) == (384, 12, 6)
+    assert cfg.embed_dim // cfg.num_heads == 64
+    assert (cfg.predictor_embed_dim, cfg.predictor_depth, cfg.predictor_num_heads) == (192, 6, 6)
+    assert cfg.predictor_embed_dim // cfg.predictor_num_heads == 32
+
+
+def test_the_vit_small_has_about_24m_trainable_weights():
+    cfg = get_config("stl10_vits")
+    rng = np.random.default_rng(0)
+    model = JEPA(cfg)
+    model.init_target_encoder()
+    model(np.zeros((1, 96, 96, 3), "float32"), *sample_masks(cfg, rng))
+
+    encoder = sum(int(np.prod(w.shape)) for w in model.context_encoder.trainable_weights)
+    predictor = sum(int(np.prod(w.shape)) for w in model.predictor.trainable_weights)
+    assert 20e6 < encoder < 23e6
+    assert 2e6 < predictor < 4e6
