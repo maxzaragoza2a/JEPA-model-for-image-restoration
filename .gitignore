@@ -20,6 +20,9 @@ data/
 # Figures written by `python -m jepa.visualise`.
 masked_samples.png
 
+# Graphs written by `python -m jepa.visualise_model --netron`.
+model_graph/
+
 # Notebooks / editors
 .ipynb_checkpoints/
 .vscode/
