@@ -13,6 +13,7 @@ Usage (depuis la racine du projet) :
     python result_analysis/predicted_fill.py
     python result_analysis/predicted_fill.py --seed 3 --images 3
     python result_analysis/predicted_fill.py --run cifar10_d128
+    python result_analysis/predicted_fill.py --target-scale 0.07 0.10   # blocs 2x plus petits
 """
 
 import argparse
@@ -167,10 +168,15 @@ def main():
     parser.add_argument("--images", type=int, default=3)
     parser.add_argument("--out", default=None,
                         help="image produite (défaut : predicted_samples_<run>.png)")
+    parser.add_argument("--target-scale", type=float, nargs=2, metavar=("MIN", "MAX"),
+                        help="aire de chaque bloc cible en fraction de la grille "
+                             "(défaut : celle de l'entraînement, 0.15 0.20)")
     args = parser.parse_args()
     out = args.out or str(Path(__file__).parent / f"predicted_samples_{args.run}.png")
 
     config = get_config(args.run)
+    if args.target_scale:
+        config.target_scale = tuple(args.target_scale)
     rng = np.random.default_rng(args.seed)
     first_batch = next(iter(build_probe_dataset(config, split="test")))[0]
     model = load_model(config, first_batch, rng, args.run)

@@ -85,7 +85,7 @@ For each run (`cifar10_d128` as the baseline, `cifar10_d256`, then STL-10 and `s
 - [ ] Nearest-neighbour retrieval rate of the true patch (`predicted_fill.py`), currently 51%.
 - [ ] Qualitative test on `experimentation/img/bird1.jpg`, currently ~46%: is the shape of the bird / branch recovered?
 - [x] Linear probe on the labelled splits: `result_analysis/linear_probe.py` (frozen target encoder, mean of the tokens, logistic regression, C chosen on 10% of the train split). `cifar10_d128`: **56.6%** test accuracy, against 45.0% for a random encoder.
-- [ ] Linear probe of every new run.
+- [ ] Linear probe of every new run (`stl10_vits`: **74.1%**, against 45.7% for a random encoder).
 - [ ] Add the results to `result_analysis/RESULTATS.md` and update `PROGRESS.md`.
 
 ---
@@ -110,14 +110,19 @@ Branch `stl10-vits`.
 - [x] Tests: masks on the 12x12 grid, the `stl10_vits` preset and its weight count, the compiled step (one trace, the right loss, the target encoder left to the EMA), the resume.
 - [x] Shape comments for the 12x12 grid (`jepa/model.py`, `jepa/patch_embed.py`, analysis scripts).
 
-### On the cluster
-- [ ] Check the job scheduler (the script assumes SLURM), the partition and the time limit, and adapt `scripts/train_slurm.sh`.
-- [ ] Set up the environment: `pip install -r requirements-gpu.txt`, check that TensorFlow sees the GPU.
-- [ ] Download STL-10 into `$TFDS_DATA_DIR` from the login node.
-- [ ] Smoke test: `sbatch --export=ALL,MAX_STEPS=50 scripts/train_slurm.sh`. Note the time per step and the GPU memory, adjust the batch size if needed.
-- [ ] Full run: `sbatch scripts/train_slurm.sh`, resubmitted until the 100 epochs are done.
-- [ ] Optional, if too slow: mixed precision (`mixed_float16`, with a `LossScaleOptimizer` in the step).
+### On the lab server
+The ETIS server is reached over SSH, with no job scheduler: the run goes in `tmux` instead of SLURM (`scripts/train_slurm.sh` is kept for a SLURM cluster).
+- [x] Set up the environment: Python 3.12 venv with `uv`, `pip install -r requirements-gpu.txt`, `LD_LIBRARY_PATH` to the pip CUDA libraries, `CUDA_CACHE_MAXSIZE` raised for the PTX compilation on Blackwell. TensorFlow sees the 2 GPUs.
+- [x] STL-10: the server cannot reach the download site, so `~/tensorflow_datasets/stl10` was copied from the local machine with `scp`.
+- [x] Smoke test (50 steps): 55 s, compilation included.
+- [x] Full run: `python -u -m jepa.train --run stl10_vits --resume >> logs/stl10_vits.log 2>&1` in `tmux`, 100 epochs, ~112 s per epoch (~0.29 s per step), ~3 h 10. Final loss 0.397.
+- [ ] Optional: mixed precision (`mixed_float16`, with a `LossScaleOptimizer` in the step). Not needed at this speed.
 
 ### Evaluation
-- [ ] Loss curve, collapse check (ideal normalised std ~1/sqrt(384) = 0.051), retrieval rate, `bird1.jpg` at 96x96 (`prediction_bird1_v3.png`).
-- [ ] Linear probe on the STL-10 labelled splits (5k train / 8k test), compared with a random encoder and, once trained, with `stl10_d128` / `stl10_d256`.
+- [x] Collapse check: normalised std 0.0507 (ideal ~1/sqrt(384) = 0.051), 0 dead dimensions, effective rank 228 per image (94 for a random encoder).
+- [x] Linear probe on the STL-10 labelled splits (5k train / 8k test): **74.1%** test accuracy, against 45.7% for a random encoder.
+- [x] Loss curve: [`loss_par_step_stl10_vits.png`](result_analysis/loss_par_step_stl10_vits.png), minimum 0.095 at step 750, peak ~0.42, end 0.400.
+- [x] Retrieval rate (`predicted_fill.py`): **68%** of true patches found among 294k (51% for `cifar10_d128`).
+- [x] `bird1.jpg` at 96x96 ([`prediction_bird1_v3.png`](experimentation/prediction_bird1_v3.png)): 51% (~46% before); blue now appears where the bird is, but the head and the branch are not recovered.
+- [ ] Compare with `stl10_d128` / `stl10_d256` once trained (the second GPU is free).
+- [ ] Normalise the targets before the loss (parameter-free layer norm, as in the I-JEPA paper) and compare on a separate run.

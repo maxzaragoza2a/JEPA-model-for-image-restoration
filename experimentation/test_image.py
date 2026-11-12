@@ -14,6 +14,7 @@ Usage (depuis la racine du projet) :
     python experimentation/test_image.py --seed 3
     python experimentation/test_image.py chat.jpg
     python experimentation/test_image.py --run cifar10_d128
+    python experimentation/test_image.py --target-scale 0.07 0.10   # blocs 2x plus petits
 """
 
 import argparse
@@ -75,6 +76,9 @@ def main():
     parser.add_argument("--seed", type=int, default=0, help="tirage du masque")
     parser.add_argument("--out", default=None,
                         help="image produite (défaut : predictions_<run>.png)")
+    parser.add_argument("--target-scale", type=float, nargs=2, metavar=("MIN", "MAX"),
+                        help="aire de chaque bloc cible en fraction de la grille "
+                             "(défaut : celle de l'entraînement, 0.15 0.20)")
     args = parser.parse_args()
     args.out = args.out or str(HERE / f"predictions_{args.run}.png")
 
@@ -85,6 +89,8 @@ def main():
         sys.exit(f"Aucune image trouvée dans {HERE}. Déposez-y un .jpg ou un .png.")
 
     config = get_config(args.run)
+    if args.target_scale:
+        config.target_scale = tuple(args.target_scale)
     rng = np.random.default_rng(args.seed)
     originals = np.stack([load_image(p, config) for p in paths])
     images = standardise(originals, config)
